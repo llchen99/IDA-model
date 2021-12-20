@@ -9,6 +9,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.svm import SVC
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from scipy.stats import chi2_contingency
 from scipy.stats import mannwhitneyu
@@ -16,6 +17,10 @@ from scipy import stats
 from statistics import mean
 from statistics import stdev
 
+# LOG OF CHANGES
+# - ingeladen met goede paths voor LC. Voor de rest alleen toegevoegd dat hij print hoeveel kolommen er zijn.
+# - test data los getrokken 
+# - begonnen aan data laten testen op testdata
 
 def load_data(path, columns):
     '''With this function, Excel files can be loaded into Python. The path to the file and the desired columns from the
@@ -93,7 +98,7 @@ def scale_data(data_train, data_test, continuous_keys, ordinal_keys):
     df_for_scaler_train = data_train[continuous_keys].copy()  # Create a copy dataframe with only the continuous keys of the train data
     df_for_scaler_test = data_test[continuous_keys].copy()   # Create a copy dataframe with only the continuous keys of the test data
     
-    # Schale the continuous features of the train and test data
+    # Scale the continuous features of the train and test data
     scale_train = scaler.fit_transform(df_for_scaler_train)
     scale_test = scaler.transform(df_for_scaler_test)
 
@@ -143,6 +148,7 @@ def feature_selection(train_data, train_label, index_train, ordinal_keys, binary
     # Create to dataframes for the different populations
     df_num_0 = merge_data_train.loc[merge_data_train['Label'] == 0.0]
     df_num_1 = merge_data_train.loc[merge_data_train['Label'] == 1.0]
+
     # Create dataframe to fill with p-values
     df_p = pd.DataFrame({'Features': ordinal_keys+binary_keys+continuous_keys})
 
@@ -251,6 +257,35 @@ def mean_ROC_curves(tprs_all, aucs_all, axis_all):
         axis_all[3].legend(loc="lower right")    # Set legend
     return
 
+# https://www.researchgate.net/post/How_do_I_optimally_match_cases_and_controls_based_on_age_and_gender
+def stratify_data(df_data, stratify_column_name, stratify_values, stratify_proportions, random_state=None):
+    """Stratifies data according to the values and proportions passed in
+    Args:
+        df_data (DataFrame): source data
+        stratify_column_name (str): The name of the single column in the dataframe that holds the data values that will be used to stratify the data
+        stratify_values (list of str): A list of all of the potential values for stratifying e.g. "Male, Graduate", "Male, Undergraduate", "Female, Graduate", "Female, Undergraduate"
+        stratify_proportions (list of float): A list of numbers representing the desired propotions for stratifying e.g. 0.4, 0.4, 0.2, 0.2, The list values must add up to 1 and must match the number of values in stratify_values
+        random_state (int, optional): sets the random_state. Defaults to None.
+    Returns:
+        DataFrame: a new dataframe based on df_data that has the new proportions represnting the desired strategy for stratifying
+    """
+    df_stratified = pd.DataFrame(columns = df_data.columns) # Create an empty DataFrame with column names matching df_data
+
+    pos = -1
+    for i in range(len(stratify_values)): # iterate over the stratify values (e.g. "Male, Undergraduate" etc.)
+        pos += 1
+        if pos == len(stratify_values) - 1: 
+            ratio_len = len(df_data) - len(df_stratified) # if this is the final iteration make sure we calculate the number of values for the last set such that the return data has the same number of rows as the source data
+        else:
+            ratio_len = int(len(df_data) * stratify_proportions[i]) # Calculate the number of rows to match the desired proportion
+
+        df_filtered = df_data[df_data[stratify_column_name] ==stratify_values[i]] # Filter the source data based on the currently selected stratify value
+        df_temp = df_filtered.sample(replace=True, n=ratio_len, random_state=random_state) # Sample the filtered data using the calculated ratio
+        
+        df_stratified = pd.concat([df_stratified, df_temp]) # Add the sampled / stratified datasets together to produce the final result
+        
+    return df_stratified # Return the stratified, re-sampled data 
+
 # Load and merge data. Define paths and columns wanted from Excel files
 path_data = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Stage 2/IDA-model-main/model/v6_dataset.xlsx'
 columns_data = "A:BBB"
@@ -283,6 +318,7 @@ df_hix_spec = df_data.merge(df_spec, on='Pt_no', how='outer')
 df_hix_phecodes = df_hix_spec.merge(df_phecodes, on='Pt_no', how='outer')
 # In df hix, all features are merged inside one dataframe. The specialisms, phecodes and labels are added
 df_hix = df_hix_phecodes.merge(df_labels, on='Pt_no', how='inner')
+print('Number of columns before dropped columns: ' + str(len(df_hix.columns)))
 
 # Defining thresholds for dropping rows and columns with missing data (threshold of amount of non-NA values required)
 threshold_column = 0.7
@@ -291,14 +327,29 @@ threshold_row = 0.6
 # Drop columns and rows with too many NaN's
 df_dropped = drop_data(threshold_column, threshold_row, df_hix)
 
-# Balance set by picking random samples from no ID group
+print('Number of columns after dropped columns: ' + str(len(df_dropped.columns)))
+
+# Balance set by picking random samples from no ID group # hierrr
 df_ID_1 = df_dropped.loc[df_dropped['Label'] == 1.0]
 df_ID_0_all = df_dropped.loc[df_dropped['Label'] == 0.0]
-# random_state makes sure that the same sample is picked every time
+
+# To perform stratified random sampling, the gender of the ID group is checked
+# Check baseline characteristics of subset
+# Merge the dataframes of ID and no ID with the baseline characteristics in df baseline (age and gender)
+df_1_baseline = df_ID_1.merge(df_baseline, on='Pt_no', how='inner')
+df_1_gender = (df_1_baseline['Geslacht'].value_counts()) / len(df_1_baseline) * 100
+# print(df_1_gender)
+# print(df_1_gender.values)
+# df_1_mean_age = np.mean(df_1_baseline['Leeftijd'])
+# df_1_std_age = np.std(df_1_baseline['Leeftijd'])
+# print(f'mean age {df_1_mean_age}')
+# print(f'std age {df_1_std_age}')
+
+# random_state makes sure that the same sample is picked every time #HIERHIERHIERHEI
 df_ID_0 = df_ID_0_all.sample(n=df_ID_1.shape[0], random_state=2)
 # df drop contains the dataframe with the subset of no ID patients and all ID patients
 df_drop = pd.concat([df_ID_1, df_ID_0])
-
+print(df_drop)
 # Check baseline characteristics of subset
 # Merge the dataframes of ID and no ID with the baseline characteristics in df baseline (age and gender)
 df_0_baseline = df_ID_0.merge(df_baseline, on='Pt_no', how='inner')
@@ -320,6 +371,18 @@ tprs_SVM_sign = []
 aucs_SVM_sign = []
 spec_SVM_sign = []
 sens_SVM_sign = []
+tprs_RF_fin = []
+aucs_RF_fin = []
+spec_RF_fin = [] 
+sens_RF_fin = []
+accuracy_RF_fin = []
+axis_RF_fin = []
+tprs_SVM_fin = []
+aucs_SVM_fin = [] 
+spec_SVM_fin = [] 
+sens_SVM_fin = [] 
+accuracy_SVM_fin = [] 
+axis_SVM_fin = []
 accuracy_SVM_sign = []
 perm_importances_dfs = []
 sign_features_dfs = []
@@ -341,22 +404,35 @@ binary_keys.remove('Pt_no')
 binary_keys.remove('Pt_no')
 continuous_keys = ['Length', 'Weight', 'HR', 'RRsyst', 'RRdiast', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Gamma-GT', 'Ureum']
 
+# Test data splitten uit totale dataset
+train_data2, test_data2 = train_test_split(df_drop, test_size=0.1, random_state=25)
+train_data = train_data2.drop(['Pt_no', 'Label'], axis=1)
+test_data = test_data2.drop(['Pt_no', 'Label'], axis=1)
+train_label = train_data2['Label']
+test_label = test_data2['Label']
+
 # Define 10-fold stratified cross-validation
 cv_10fold = model_selection.StratifiedKFold(n_splits=10)
 
-for i, (train_index, test_index) in enumerate(cv_10fold.split(data, labels)):    # Split the data in a train and test set in a 10-fold cross-validation
-    data_train = data.iloc[train_index]
-    label_train = labels.iloc[train_index]
-    data_test = data.iloc[test_index]
-    label_test = labels.iloc[test_index]
-
+for i, (train_index, val_index) in enumerate(cv_10fold.split(train_data, train_label)):    # Split the data in a train and validation set in a 10-fold cross-validation
+    data_train = train_data.iloc[train_index]
+    label_train = train_label.iloc[train_index]
+    data_val = train_data.iloc[val_index]
+    label_val = train_label.iloc[val_index]
+ 
     # Pre-processing steps
     # Impute data
-    impute_train, impute_test = impute_data(data_train, data_test, df_decimal)
+    impute_train, impute_val = impute_data(data_train, data_val, df_decimal)
+
     # Find significant features per fold
     sign, sign_features_dfs = feature_selection(impute_train, label_train, train_index, ordinal_keys, binary_keys, continuous_keys, sign_features_dfs)
+
+    # Make new dataframes with the significant features
+    # train_sign=impute_train[sign]
+    # val_sign=impute_val[sign]
+
     # Scale the data
-    scale_train, scale_test = scale_data(impute_train, impute_test, continuous_keys, ordinal_keys)
+    scale_train, scale_val = scale_data(impute_train, impute_val, continuous_keys, ordinal_keys)
 
     # Define classifiers
     clf_RF_all = RandomForestClassifier()
@@ -365,9 +441,9 @@ for i, (train_index, test_index) in enumerate(cv_10fold.split(data, labels)):   
 
     # Create and test three different models: random forest with all features, random forest with significant features only and support vector machine with only significant features
     # Random forest with all features: create model
-    tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all = pipeline_model(impute_train, label_train, impute_test, label_test, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all)
+    tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all = pipeline_model(impute_train, label_train, impute_val, label_val, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all)
     # Random forest with all features: Calculate permutation feature importance
-    result = permutation_importance(clf_RF_all, impute_test, label_test, n_repeats=10, random_state=42, n_jobs=2)
+    result = permutation_importance(clf_RF_all, impute_val, label_val, n_repeats=10, random_state=42, n_jobs=2)
     # Create dataframe to store the results
     df_feature_importance = pd.DataFrame({'Feature': (list(data_train.columns)), 'Feature importance mean': result.importances_mean, 'Feature importance std': result.importances_std})
     # Sort dataframe with the most important features first. Keep only the 5 most important features with .head()
@@ -376,15 +452,43 @@ for i, (train_index, test_index) in enumerate(cv_10fold.split(data, labels)):   
     perm_importances_dfs.append(df_feature_importance_sorted)
 
     # Random forest with significant features only: create model
-    tprs_RF_sign, aucs_RF_sign, spec_RF_sign, sens_RF_sign, accuracy_RF_sign = pipeline_model(impute_train[sign], label_train, impute_test[sign], label_test, clf_RF_sign, tprs_RF_sign, aucs_RF_sign, spec_RF_sign, sens_RF_sign, accuracy_RF_sign, axis_RF_sign)
+    tprs_RF_sign, aucs_RF_sign, spec_RF_sign, sens_RF_sign, accuracy_RF_sign = pipeline_model(impute_train[sign], label_train, impute_val[sign], label_val, clf_RF_sign, tprs_RF_sign, aucs_RF_sign, spec_RF_sign, sens_RF_sign, accuracy_RF_sign, axis_RF_sign)
 
     # Support vector machine with significant features only: create model with scaled data
-    tprs_SVM_sign, aucs_SVM_sign, spec_SVM_sign, sens_SVM_sign, accuracy_SVM_sign = pipeline_model(scale_train, label_train, scale_test, label_test, clf_SVM, tprs_SVM_sign, aucs_SVM_sign, spec_SVM_sign, sens_SVM_sign, accuracy_SVM_sign, axis_SVM_sign)
+    tprs_SVM_sign, aucs_SVM_sign, spec_SVM_sign, sens_SVM_sign, accuracy_SVM_sign = pipeline_model(scale_train, label_train, scale_val, label_val, clf_SVM, tprs_SVM_sign, aucs_SVM_sign, spec_SVM_sign, sens_SVM_sign, accuracy_SVM_sign, axis_SVM_sign)
 
     print(f'This is fold {i}')
 
-print(sign_features_dfs)    # Print in order to show the significant features for every fold
-print(perm_importances_dfs)    # Print in order to show the significant features with permuation feature importance per fold
+print(f'Significant features for every fold {sign_features_dfs}')    # Print in order to show the significant features for every fold
+print(f'Significant features with permutation blabla {perm_importances_dfs}')    # Print in order to show the significant features with permuation feature importance per fold
+
+# Now, create a dataframe with all duplicate features removed
+#perm_importances_dfs = pd.DataFrame(perm_importances_dfs)
+rel_features_df = list(dict.fromkeys(perm_importances_dfs))
+#rel_features_df = perm_importances_dfs.drop_duplicates(subset=['Feature'])
+print(f'Dit is rel_features_df {rel_features_df}')
+
+# Make new dataframes containing only these features
+
+
+# Train a SVM and RF classifier using all the training data and validate on the remaining 10% of unseen data
+# For this, some new preprocessing is needed
+# Pre-processing steps
+# Impute data
+impute_train_fin, impute_test_fin = impute_data(train_data, test_data, df_decimal)
+
+# Scale the data
+scale_train_fin, scale_test_fin = scale_data(impute_train_fin, impute_test_fin, continuous_keys, ordinal_keys)
+
+# Define classifiers
+clf_RF_fin = RandomForestClassifier()
+clf_SVM_fin = SVC()
+
+# Random forest with significant features only: create model
+tprs_RF_fin, aucs_RF_fin, spec_RF_fin, sens_RF_fin, accuracy_RF_fin = pipeline_model(impute_train_fin, train_label, impute_test_fin, test_label, clf_RF_fin, tprs_RF_fin, aucs_RF_fin, spec_RF_fin, sens_RF_fin, accuracy_RF_fin, axis_RF_fin)
+
+# Support vector machine with significant features only: create model with scaled data
+tprs_SVM_fin, aucs_SVM_fin, spec_SVM_fin, sens_SVM_fin, accuracy_SVM_fin = pipeline_model(scale_train_fin, train_label, scale_test_fin, test_label, clf_SVM_fin, tprs_SVM_fin, aucs_SVM_fin, spec_SVM_fin, sens_SVM_fin, accuracy_SVM_fin, axis_SVM_fin)
 
 # Combine true positive rates, areas under curve and axes for plotting mean ROC curves
 all_tprs = [tprs_RF_all, tprs_RF_sign, tprs_SVM_sign]
@@ -411,3 +515,4 @@ dict_scores = {'Model 1: RF with all features': [f'{np.round(mean(accuracy_RF_al
 df_scores = pd.DataFrame.from_dict(dict_scores, orient='index', columns=['Accuracy', 'Sensitivity', 'Specificity', 'Area under ROC-curve'])
 
 print(df_scores)
+
