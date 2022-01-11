@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
 from sklearn.impute import KNNImputer
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+from sklearn.linear_model import BayesianRidge
 
-
-def impute_data(data_train, data_test, df_decimal):
+def impute_data2(data_train, data_test, df_decimal):
     '''With this function, missing values are imputed with a 3-Nearest Neighbors imputer with a weight depending on distance.
     The imputer is fit on the train set and applied to the test set. The imputed values are rounded differently for every column.
     Two dataframes with train and test data must be given as input. The amount of decimals per feature must also be given as input in a separate dataframe.
@@ -12,7 +14,8 @@ def impute_data(data_train, data_test, df_decimal):
     columns_data = list(data_train.columns)
 
     # Imputation of NaN's with KNN
-    imputer = KNNImputer(n_neighbors=5, weights="distance")
+    imputer = IterativeImputer()
+        #imputation_order='ascending', random_state=0)
     impute_train = imputer.fit_transform(data_train)
     impute_test = imputer.transform(data_test)
 

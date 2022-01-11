@@ -177,7 +177,7 @@ for i, (train_index, val_index) in enumerate(cv_10fold.split(train_data, train_l
     # Pre-processing steps
     # Impute data
     impute_train, impute_val = impute_data(data_train, data_val, df_decimal)
-
+    print(impute_train.shape)
     # Find significant features per fold
     sign, sign_features_dfs = find_sign_features(impute_train, label_train, train_index, ordinal_keys, binary_keys, continuous_keys, sign_features_dfs)
 

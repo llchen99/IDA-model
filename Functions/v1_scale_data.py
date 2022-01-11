@@ -9,7 +9,7 @@ def scale_data(data_train, data_test, continuous_keys, ordinal_keys):
     The function is fit on the train set and applied to the test set. Two dataframes of scaled train and test data are returned.'''
 
     # First scale the continuous features with a MinMaxScaler:
-    scaler = preprocessing.MinMaxScaler()  # Define the scaler
+    scaler = preprocessing.StandardScaler()  # Define the scaler
     df_for_scaler_train = data_train[continuous_keys].copy()  # Create a copy dataframe with only the continuous keys of the train data
     df_for_scaler_test = data_test[continuous_keys].copy()   # Create a copy dataframe with only the continuous keys of the test data
     

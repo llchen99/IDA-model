@@ -1,10 +1,7 @@
 # LOG OF CHANGES
-# Feature selection aangepast, namelijk greedy feature selection
-# alle functies in aparte files gedaan
-# inclusief de stratificatie data
-# voor de kruisvalidatie verwijderd dat ie ook SVM en RF doet, die gebruik ik toch niet
-# Dit is een versie waarmee ik tevreden ben, vóór het tunen. Dus eigenlijk de parameters en Joyce's code maar getest en gedaan op mijn manier.
-# Ik denk dat ik dit v2.0 ga noemen.
+# Gewicht verwijderd.
+# Geprobeerd om het imputeren niet van BMI te doen, niet gelukt, later terugkomen. Error bij de t-test. Misschien later BMI in een aparte dataframe doen en daarvan de NaNs te droppen? Teveel moeite? 
+# Implementatie wrapper feature selection.
 
 import os
 import sys
@@ -44,7 +41,7 @@ from statistics import stdev
 from mlxtend.feature_selection import SequentialFeatureSelector as sfs
 
 # Load and merge data. Define paths and columns wanted from Excel files
-path_data = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Stage 2/IDA-model-main/model/v6_dataset.xlsx'
+path_data = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Stage 2/IDA-model-main/model/v7_dataset.xlsx'
 columns_data = "A:BBB"
 path_labels = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Stage 2/IDA-model-main/model/IDA_aangevuld.xls'
 columns_labels = "A:B"
@@ -156,8 +153,8 @@ binary_keys = list(df_spec.keys()) + list(df_phecodes.keys()) + list(df_brieven.
 binary_keys.remove('Pt_no')
 binary_keys.remove('Pt_no')
 binary_keys.remove('Pt_no')
-continuous_keys = ['Length', 'BMI', 'Opnames_spec', 'Beeldvormende_verr', 'HR', 'RRsyst', 'RRdiast', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Gamma-GT', 'Ureum']
-
+#continuous_keys = ['Length', 'BMI', 'Opnames_spec', 'Beeldvormende_verr', 'HR', 'RRsyst', 'RRdiast', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Gamma-GT', 'Ureum']
+continuous_keys = ['Length', 'Opnames_spec', 'Beeldvormende_verr', 'HR', 'RRsyst', 'RRdiast', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Gamma-GT', 'Ureum']
 # Test data splitten uit totale dataset
 train_data2, test_data2 = train_test_split(df_comb, test_size=0.1, random_state=25)
 train_data = train_data2.drop(['Pt_no', 'Label'], axis=1)
@@ -175,12 +172,16 @@ for i, (train_index, val_index) in enumerate(cv_10fold.split(train_data, train_l
     label_val = train_label.iloc[val_index]
  
     # Pre-processing steps
-    # Impute data
-    #impute_train, impute_val = impute_data(data_train.loc[:,data_train.columns!='BMI'], data_val.loc[:,data_val.columns !='BMI'], df_decimal) #imputes data for all columns except BMI
-    impute_train, impute_val = impute_data(data_train, data_val, df_decimal) # later naar terugkomen
-
+    # Impute data, but exclude the BMI in this. Add BMI again after imputation.
+    impute_train, impute_val = impute_data(data_train.loc[:,data_train.columns!='BMI'], data_val.loc[:,data_val.columns !='BMI'], df_decimal) #imputes data for all columns except BMI
+    #print(data_train['BMI'])
+    #impute_train, impute_val = impute_data(data_train, data_val, df_decimal) # later naar terugkomen
+    sam_train = impute_train.join(data_train['BMI'])
+    sam_val = impute_val.join(data_val['BMI'])
+    print(sam_train)
     # Find significant features per fold
-    sign, sign_features_dfs = find_sign_features(impute_train, label_train, train_index, ordinal_keys, binary_keys, continuous_keys, sign_features_dfs)
+    #sign, sign_features_dfs = find_sign_features(impute_train, label_train, train_index, ordinal_keys, binary_keys, continuous_keys, sign_features_dfs)
+    sign, sign_features_dfs = find_sign_features(sam_train, label_train, train_index, ordinal_keys, binary_keys, continuous_keys, sign_features_dfs)
 
     # Make new dataframes with the significant features
     # train_sign=impute_train[sign]
@@ -200,12 +201,18 @@ for i, (train_index, val_index) in enumerate(cv_10fold.split(train_data, train_l
     # Create and test three different models: random forest with all features, random forest with significant features only and support vector machine with only significant features
     # Random forest with all features: create model
     #tprs_RF_all, aucs_RF_all, auc_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, gini_RF_all = pipeline_model(impute_train, label_train, impute_val, label_val, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all)
+    tprs_RF_all, aucs_RF_all, auc_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, gini_RF_all = pipeline_model(sam_train, label_train, sam_val, label_val, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all)
+
     # Random forest with significant features only: create model
-    tprs_RF_all, aucs_RF_all, auc_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, gini_RF_all = pipeline_model(impute_train[sign], label_train, impute_val[sign], label_val, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all)
+    #tprs_RF_all, aucs_RF_all, auc_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, gini_RF_all = pipeline_model(impute_train[sign], label_train, impute_val[sign], label_val, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all) # met alleen maar significante features (lagere scores)
     # Random forest with all features: Calculate permutation feature importance
-    result = permutation_importance(clf_RF_all, impute_val[sign], label_val, n_repeats=10, random_state=42, n_jobs=2)
+    #result = permutation_importance(clf_RF_all, impute_val[sign], label_val, n_repeats=10, random_state=42, n_jobs=2) # met alleen maar significante features (lagere scores)
+    result = permutation_importance(clf_RF_all, impute_val, label_val, n_repeats=10, random_state=42, n_jobs=2) 
+
     # Create dataframe to store the results
-    df_feature_importance = pd.DataFrame({'Feature': (list(impute_train[sign].columns)), 'Feature importance mean': result.importances_mean, 'Feature importance std': result.importances_std})
+    #df_feature_importance = pd.DataFrame({'Feature': (list(impute_train[sign].columns)), 'Feature importance mean': result.importances_mean, 'Feature importance std': result.importances_std})
+    df_feature_importance = pd.DataFrame({'Feature': (list(sam_train.columns)), 'Feature importance mean': result.importances_mean, 'Feature importance std': result.importances_std}) # met alleen maar significante features (lagere scores)
+
     # Sort dataframe with the most important features first. Keep only the 5 most important features with .head()
     df_feature_importance_sorted = df_feature_importance.sort_values(by=['Feature importance mean'], ascending=False).head()
     # Append dataframe to list per fold. The list consists of i dataframes for the number of folds, showing the best 5 features per fold. This dataframe can be used for visualization.
