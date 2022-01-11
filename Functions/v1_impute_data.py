@@ -12,7 +12,7 @@ def impute_data(data_train, data_test, df_decimal):
     columns_data = list(data_train.columns)
 
     # Imputation of NaN's with KNN
-    imputer = KNNImputer(n_neighbors=5, weights="distance")
+    imputer = KNNImputer(n_neighbors=3, weights="distance")
     impute_train = imputer.fit_transform(data_train)
     impute_test = imputer.transform(data_test)
 
