@@ -1,5 +1,6 @@
 # LOG OF CHANGES
-# grote loop aan het schrijven, vond het spannend dus hier een extra versie waarin ik daadwerkelijk aanpassingen ga maken
+# laatste versie
+# Gecommente dingen weg
 
 import os
 import sys
@@ -17,6 +18,7 @@ from v1_impute_data import impute_data
 from v1_load_data import load_data
 from v1_mean_ROC_curves import mean_ROC_curves
 from v1_pipeline_model import pipeline_model
+#from v4_pipeline_model import pipeline_model4
 from v1_scale_data import scale_data
 from v1_stratify import stratify
 from v1_syndromen import syndromen
@@ -54,12 +56,14 @@ path_decimals = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-mode
 columns_decimals = 'A:HI'
 path_baseline = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/baseline.xlsx'
 columns_baseline = 'A:C'
-path_extra = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/v3_extra.xlsx'
-columns_extra = 'A:D'
-path_brieven = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/v2_brieven.xlsx'
-columns_brieven = 'A:BR'
+#path_extra = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/v3_extra.xlsx'
+#columns_extra = 'A:D'
+#path_brieven = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/v2_brieven.xlsx'
+#columns_brieven = 'A:BR'
 path_syndromen = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/v1_syndromen.xlsx'
 columns_syndromen = 'A:B'
+path_syndroomcodes = 'C:/Users/linda/Dropbox/TM/Stagedocumenten/Q2 2021-2022/IDA-model-main/model/v1_syndroomcodes.xlsx'
+columns_syndroomcodes = 'A:B'
 
 # df data contains most of the features needed to build the model
 df_data = load_data(path_data, columns_data)
@@ -74,21 +78,23 @@ df_decimal = load_data(path_decimals, columns_decimals)
 # df baseline contains baseline characteristics age and gender
 df_baseline = load_data(path_baseline, columns_baseline)
 # df_extra contains extra characteristics like BMI and opnames
-df_extra = load_data(path_extra, columns_extra)
+#df_extra = load_data(path_extra, columns_extra)
 # df_brieven contains the letters sent from specialisms
-df_brieven = load_data(path_brieven,columns_brieven)
+#df_brieven = load_data(path_brieven,columns_brieven)
 # df_syndromen contains the PIDs and syndrome code
 df_syndromen = load_data(path_syndromen,columns_syndromen)
+# df_syndroomcodes contains the syndrome code and syndrome names
+df_syndroomcodes = load_data(path_syndroomcodes,columns_syndroomcodes)
 
 # Merge dataframes
 df_hix_spec = df_data.merge(df_spec, on='Pt_no', how='outer')
 df_hix_phecodes = df_hix_spec.merge(df_phecodes, on='Pt_no', how='outer')
 # In df hix, all features are merged inside one dataframe. The specialisms, phecodes and labels are added
-df_hix = df_hix_phecodes.merge(df_labels, on='Pt_no', how='inner')
+df_all = df_hix_phecodes.merge(df_labels, on='Pt_no', how='inner')
 # Now add all the extra features
-df_ex = df_hix.merge(df_extra, on='Pt_no',how = 'inner')
+#df_all = df_hix.merge(df_extra, on='Pt_no',how = 'inner')
 # Now add the letters from the specialisms
-df_all = df_ex.merge(df_brieven, on = 'Pt_no', how = 'inner')
+#df_all = df_ex.merge(df_brieven, on = 'Pt_no', how = 'inner')
 print('Number of columns before dropped columns: ' + str(len(df_all.columns)))
 
 # Defining thresholds for dropping rows and columns with missing data (threshold of amount of non-NA values required)
@@ -148,22 +154,28 @@ final_features = []
 performances = []
 
 # Define the necessary figures
-_, axis_RF_all = plt.subplots()
 _, axis_RF_fin = plt.subplots()
 _, axis_SVM_fin = plt.subplots()
+_, axis_models = plt.subplots()
 
 # Define data and labels
 labels = df_comb['Label']
 data = df_comb.drop(['Pt_no', 'Label'], axis=1)
 
 # Define ordinal, binary and continuous keys
-ordinal_keys = ['Anti-epileptics', 'Psychofarmaca', 'Antacids', 'Anti-hypertensives', 'VitB12', 'Iron-tablets', 'Specialisms_hospitalization', 'Radiologic_investigations', 'Total_amount_ICD10s']
-binary_keys = list(df_spec.keys()) + list(df_phecodes.keys()) + list(df_brieven.keys())
+ordinal_keys = ['Anti-epileptics', 'Psychofarmaca', 'Antacids', 'Anti-hypertensives', 'VitB12', 'Iron-tablets', 'Specialisms_hospitalization', 'Radiologic_investigations', 'Total_amount_ICD10s', 'SUM']
+binary_keys = list(df_spec.keys()) + list(df_phecodes.keys()) # + list(df_brieven.keys())
 binary_keys.remove('Pt_no')
 binary_keys.remove('Pt_no')
-binary_keys.remove('Pt_no')
-continuous_keys = ['Length', 'Opnames_spec', 'Beeldvormende_verr', 'HR', 'RRsyst', 'RRdiast', 'FSH', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'Albumine', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'Leukocyten', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Trombocyten', 'Gamma-GT', '25-OH Vitamine D', 'Ureum', 'LDL-Cholesterol', 'BMI']
+#binary_keys.remove('Pt_no')
+#continuous_keys = ['Length', 'Opnames_spec', 'Beeldvormende_verr', 'HR', 'RRsyst', 'RRdiast', 'FSH', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'Albumine', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'Leukocyten', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Trombocyten', 'Gamma-GT', '25-OH Vitamine D', 'Ureum', 'LDL-Cholesterol', 'BMI']
+continuous_keys = ['Length', 'HR', 'RRsyst', 'RRdiast', 'FSH', 'Vrij T4', 'Hemolytische index', 'Icterische index', 'Lipemische index', 'TSH', 'Alk.Fosf.', 'ALAT', 'Albumine', 'ASAT', 'Calcium', 'CKD-EPI eGFR', 'Glucose/PL', 'Hemoglobine', 'Kalium', 'Kreatinine', 'LDH', 'Leukocyten', 'MCV', 'Natrium', 'RDW', 'Tot. Bilirubine', 'Trombocyten', 'Gamma-GT', '25-OH Vitamine D', 'Ureum', 'LDL-Cholesterol', 'BMI']
 
+# Syndromen bekijken
+# syndromen(df_syndromen, df_control, df_1_baseline, df_syndroomcodes)
+
+print('Number of ID subjects for analysis: ' + str(len(df_1_baseline.index)))
+print('Number of controls for analysis: ' + str(len(df_control.index)))
 # VANAF HIER ZOU DE GROTE LOOP MOETEN
 big_cv_10fold = model_selection.StratifiedKFold(n_splits=10, shuffle=True, random_state=22) # pshh yolo we gaan hem gewoon lang laten runnen
 for j, (train_index, test_index) in enumerate(big_cv_10fold.split(df_comb, labels)):    # Split the data in a train and validation set in a 10-fold cross-validation
@@ -181,11 +193,7 @@ for j, (train_index, test_index) in enumerate(big_cv_10fold.split(df_comb, label
     # train_label = train_data2['Label']
     # test_label = test_data2['Label']
 
-    # Syndromen bekijken
-    # control_count, ID_count, syndroom_control, syndroom_ID = syndromen(df_syndromen, df_control, df_1_baseline)
 
-    print('Number of ID subjects for analysis: ' + str(len(df_1_baseline.index)))
-    print('Number of controls for analysis: ' + str(len(df_control.index)))
 
     # Define 10-fold stratified cross-validation
     cv_10fold = model_selection.StratifiedKFold(n_splits=10, shuffle=True, random_state= 4)
@@ -205,14 +213,14 @@ for j, (train_index, test_index) in enumerate(big_cv_10fold.split(df_comb, label
         impute_train = impute_train.loc[:,impute_train.columns!='Weight']
         impute_val = impute_val.loc[:,impute_val.columns!='Weight']
 
-        # Find significant features per fold
-        sign, sign_features_dfs = find_sign_features(impute_train, label_train, train_index, ordinal_keys, binary_keys, continuous_keys, sign_features_dfs)
-
         # Define classifiers
         clf_RF_all = RandomForestClassifier()
-        
+        # Fit and test the classifier
+        clf_RF_all.fit(impute_train, label_train)
+        predicted = clf_RF_all.predict(impute_val)
+
         # Create model
-        tprs_RF_all, aucs_RF_all, auc_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, gini_RF_all = pipeline_model(impute_train, label_train, impute_val, label_val, clf_RF_all, tprs_RF_all, aucs_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, axis_RF_all, gini_RF_all)
+        #tprs_RF_all, aucs_RF_all, auc_RF_all, spec_RF_all, sens_RF_all, accuracy_RF_all, gini_RF_all = pipeline_model4(impute_train, label_train, impute_val, label_val, clf_RF_all)
         result = permutation_importance(clf_RF_all, impute_val, label_val, n_repeats=10, random_state=42, n_jobs=2) 
         # Create dataframe to store the results
         df_feature_importance = pd.DataFrame({'Feature': (list(impute_train.columns)), 'Feature importance mean': result.importances_mean, 'Feature importance std': result.importances_std}) 
@@ -221,7 +229,7 @@ for j, (train_index, test_index) in enumerate(big_cv_10fold.split(df_comb, label
         # Append dataframe to list per fold. The list consists of i dataframes for the number of folds, showing the best 5 features per fold. This dataframe can be used for visualization.
         perm_importances_dfs.append(df_feature_importance_sorted)
 
-        print(f'This is fold {i}')
+        print(f'This is fold {i+1}')
 
     # Now, create a dataframe with all duplicate features removed
     rel_features_df = pd.DataFrame()
@@ -261,13 +269,11 @@ for j, (train_index, test_index) in enumerate(big_cv_10fold.split(df_comb, label
     clf_SVM_fin = SVC()
 
     # Random forest with significant features only: create model
-    tprs_RF_fin, aucs_RF_fin, auc_RF_fin, spec_RF_fin, sens_RF_fin, accuracy_RF_fin, gini_RF_fin = pipeline_model(impute_train_fin, train_label, impute_test_fin, test_label, clf_RF_fin, tprs_RF_fin, aucs_RF_fin, spec_RF_fin, sens_RF_fin, accuracy_RF_fin, axis_RF_fin, gini_RF_fin)
+    tprs_RF_fin, aucs_RF_fin, auc_RF_fin, spec_RF_fin, sens_RF_fin, accuracy_RF_fin, gini_RF_fin = pipeline_model(impute_train_fin, train_label, impute_test_fin, test_label, clf_RF_fin, tprs_RF_fin, aucs_RF_fin, spec_RF_fin, sens_RF_fin, accuracy_RF_fin, axis_RF_fin, gini_RF_fin, j)
 
     # Support vector machine with significant features only: create model with scaled data
-    tprs_SVM_fin, aucs_SVM_fin, auc_SVM_fin, spec_SVM_fin, sens_SVM_fin, accuracy_SVM_fin, gini_SVM_fin = pipeline_model(scale_train_fin, train_label, scale_test_fin, test_label, clf_SVM_fin, tprs_SVM_fin, aucs_SVM_fin, spec_SVM_fin, sens_SVM_fin, accuracy_SVM_fin, axis_SVM_fin, gini_SVM_fin)
-
-    # plt.show()
-
+    tprs_SVM_fin, aucs_SVM_fin, auc_SVM_fin, spec_SVM_fin, sens_SVM_fin, accuracy_SVM_fin, gini_SVM_fin = pipeline_model(scale_train_fin, train_label, scale_test_fin, test_label, clf_SVM_fin, tprs_SVM_fin, aucs_SVM_fin, spec_SVM_fin, sens_SVM_fin, accuracy_SVM_fin, axis_SVM_fin, gini_SVM_fin, j)
+    
     # Create a dictionary of the scores for the two models. Create dataframe for visualisation.
     dict_scores = {'Model 1: Random Forest':[f'{np.round(accuracy_RF_fin, decimals = 2)}',
                                             f'{np.round(sens_RF_fin, decimals=2)}',
@@ -283,7 +289,7 @@ for j, (train_index, test_index) in enumerate(big_cv_10fold.split(df_comb, label
     df_scores = pd.DataFrame.from_dict(dict_scores, orient='index', columns=['Accuracy', 'Sensitivity', 'Specificity', 'Area under ROC-curve','Gini index'])
 
     print(df_scores)
-    print(f'This is outer fold {j}')
+    print(f'This is outer fold {j+1}')
 
 # Om de boel te kunnen analyseren is het van belang dat we opnieuw de data imputatie doen op de hele dataset en BMI creëren
 # Impute data
@@ -305,42 +311,47 @@ impute_tot = impute_tot.merge(label_tot.rename('Label'), left_index = True, righ
 # Now separate the ID from the no ID group
 gedoe_1 = impute_tot.loc[impute_tot['Label'] == 1.0]
 gedoe_0 = impute_tot.loc[impute_tot['Label'] == 0.0]
-BMI_mean_1 = np.round(np.mean(gedoe_1['BMI']),decimals=2)
-BMI_mean_0 =np.round(np.mean(gedoe_0['BMI']), decimals=2)
-BMI_std_1 = np.round(np.std(gedoe_1['BMI']), decimals=2)
-BMI_std_0 = np.round(np.std(gedoe_0['BMI']), decimals=2)
+BMI_mean_1 = np.round(np.nanmean(gedoe_1['BMI']),decimals=2) # ignores nan values
+BMI_mean_0 =np.round(np.nanmean(gedoe_0['BMI']), decimals=2)
+BMI_std_1 = np.round(np.nanstd(gedoe_1['BMI']), decimals=2)
+BMI_std_0 = np.round(np.nanstd(gedoe_0['BMI']), decimals=2)
 
 # This is by no means a perfect BMI calculation to use in the final tabel, but considering the current circumstances it is a satisfactory option.
 
-# print(final_features)
+# make plots
+# Combine true positive rates, areas under curve and axes for plotting mean ROC curves
+all_tprs = [tprs_RF_fin, tprs_SVM_fin]
+all_aucs = [aucs_RF_fin, aucs_SVM_fin]
+all_axes = [axis_RF_fin, axis_SVM_fin, axis_models]
+
+# Create plots of the ROC curves for the three models seperately and the mean ROC curves of the three models in one figure
+mean_ROC_curves(all_tprs, all_aucs, all_axes)
+plt.show()
 # unpack the nested list 
 final_features = [a for final_features in final_features for a in final_features]
 dict_features = {x:final_features.count(x) for x in final_features}
 print(dict_features)
 df_features = pd.DataFrame.from_dict(dict_features, orient='index', columns=['Frequency'])
 df_features.index.name = 'Feature'
-df_features.to_excel("df_features.xlsx")
-
-# export performance scores to excel
-df_scores.to_excel("df_scores.xlsx", sheet_name="all_scores")
+df_features.to_excel("df_features.xlsx") # deze is een beetje overbodig geworden wel
 
 # also make a dataframe with the mean of all the performance scores that we also export to excel
 # Create a dictionary of the scores for the two models. Create dataframe for visualisation.
-dict_mean_scores = {'Model 1: Random Forest':[f'{np.round(np.mean(accuracy_RF_fin), decimals = 2)}',
-                                            f'{np.round(np.mean(sens_RF_fin), decimals=2)}',
-                                            f'{np.round(np.mean(spec_RF_fin), decimals=2)}',
-                                            f'{np.round(np.mean(aucs_RF_fin),decimals=2)}',
-                                            f'{np.round(np.mean(gini_RF_fin),decimals=2)}'],
-                'Model 2: Support Vector Machine':[f'{np.round(np.mean(accuracy_SVM_fin),decimals=2)}',
-                                            f'{np.round(np.mean(sens_SVM_fin),decimals=2)}',
-                                            f'{np.round(np.mean(spec_SVM_fin),decimals=2)}',
-                                            f'{np.round(np.mean(aucs_SVM_fin),decimals=2)}',
-                                            f'{np.round(np.mean(gini_SVM_fin),decimals=2)}']}
-# performances.append(dict_scores)
-df_mean_scores = pd.DataFrame.from_dict(dict_scores, orient='index', columns=['Accuracy', 'Sensitivity', 'Specificity', 'Area under ROC-curve','Gini index'])
-print(df_mean_scores)
-df_mean_scores.to_excel("df_scores.xlsx", sheet_name="mean_scores")
-
+dict_mean_scores = {'Model 1: Random Forest':[f'{np.round(np.mean(accuracy_RF_fin), decimals = 2)} +/- {np.round(np.std(accuracy_RF_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(sens_RF_fin), decimals=2)} +/- {np.round(np.std(sens_RF_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(spec_RF_fin), decimals=2)} +/- {np.round(np.std(spec_RF_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(aucs_RF_fin),decimals=2)} +/- {np.round(np.std(aucs_RF_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(gini_RF_fin),decimals=2)} +/- {np.round(np.std(gini_RF_fin), decimals = 2)}'],
+                'Model 2: Support Vector Machine':[f'{np.round(np.mean(accuracy_SVM_fin),decimals=2)} +/- {np.round(np.std(accuracy_SVM_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(sens_SVM_fin),decimals=2)} +/- {np.round(np.std(sens_SVM_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(spec_SVM_fin),decimals=2)} +/- {np.round(np.std(spec_SVM_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(aucs_SVM_fin),decimals=2)} +/- {np.round(np.std(aucs_SVM_fin), decimals = 2)}',
+                                            f'{np.round(np.mean(gini_SVM_fin),decimals=2)} +/- {np.round(np.std(gini_SVM_fin), decimals = 2)}']}
+df_mean_scores = pd.DataFrame.from_dict(dict_mean_scores, orient='index', columns=['Accuracy', 'Sensitivity', 'Specificity', 'Area under ROC-curve','Gini index'])
+# export performance scores to excel
+with pd.ExcelWriter('df_scores.xlsx') as writer:  
+    df_scores.to_excel(writer, sheet_name='all_scores')
+    df_mean_scores.to_excel(writer, sheet_name='mean_scores')
 # finding the differences in the relevant features
 analysis = pd.DataFrame(columns = ('frequency', 'mean_ID', 'std_ID', 'mean_control', 'std_control'))
 analysis.index.name = 'Feature'
@@ -350,11 +361,12 @@ for key in dict_features:
     if key == 'BMI': # BMI bestaat namelijk nog niet in df_1_baseline en df_control
         analysis.loc[key] = [dict_features[key], BMI_mean_1, BMI_std_1, BMI_mean_0, BMI_std_0]
     if key in continuous_keys2:
-        analysis.loc[key] = [dict_features[key], np.mean(df_1_baseline[key]), np.std(df_1_baseline[key]), np.mean(df_control[key]), np.std(df_control[key])] 
-    if key in binary_keys:
-        analysis.loc[key] = [dict_features[key], mode(df_1_baseline[key]), np.NaN, mode(df_control[key]), np.NaN]
+        analysis.loc[key] = [dict_features[key], np.round(np.nanmean(df_1_baseline[key]),decimals = 2), np.round(np.nanstd(df_1_baseline[key]),decimals = 2), np.round(np.nanmean(df_control[key]), decimals =2), np.round(np.nanstd(df_control[key]), decimals =2)] 
+    if key in binary_keys: # for binary keys, I want the percentage of 1's in the array. because in binary keys there are no missing values, we take the length.
+        analysis.loc[key] = [dict_features[key], f'{np.round((100*(df_1_baseline[key][df_1_baseline[key] == 1].sum())/(len(df_1_baseline[key]))),decimals=2)}%', np.NaN, f'{np.round((100*(df_control[key][df_control[key] == 1].sum())/(len(df_control[key]))), decimals=2)}%',np.NaN]
     if key in ordinal_keys:
-        analysis.loc[key] = [dict_features[key], np.median(df_1_baseline[key]), np.NaN, np.median(df_control[key]), np.NaN]
+        analysis.loc[key] = [dict_features[key], np.round(np.nanmedian(df_1_baseline[key]), decimals=2), np.round(np.nanstd(df_1_baseline[key]), decimals=2), np.round(np.nanmedian(df_control[key]), decimals=2), np.round(np.nanstd(df_1_baseline[key]),decimals = 2)]
+
 
 print(analysis)
 analysis.to_excel("analysis.xlsx")

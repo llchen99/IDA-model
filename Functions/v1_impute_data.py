@@ -1,7 +1,7 @@
+from statistics import mean
 import numpy as np
 import pandas as pd
-from sklearn.impute import KNNImputer
-
+from sklearn.impute import KNNImputer, SimpleImputer
 
 def impute_data(data_train, data_test, df_decimal):
     '''With this function, missing values are imputed with a 3-Nearest Neighbors imputer with a weight depending on distance.

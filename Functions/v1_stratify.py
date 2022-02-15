@@ -12,7 +12,7 @@ def stratify(df_no_ID, df_ID):
     for i in df_ID.index:
         age_1 = df_ID['Leeftijd'][i]
         gen_1 = int(df_ID['Geslacht'][i])
-        age_0_list = [] 
+        age_0_list = []
         gen_0_list = df_no_ID2.index[df_no_ID2['Geslacht']==gen_1].tolist() #indexes of all controls with the same gender
         for ind in gen_0_list:
             pt_no_0 = df_no_ID['Pt_no'][ind] #vindt het patiëntnummer bij de index bij de originele dataframe
