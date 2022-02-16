@@ -290,7 +290,8 @@ BMI_mean_0 = np.round(np.nanmean(separate_0['BMI']), decimals=2)
 BMI_std_1 = np.round(np.nanstd(separate_1['BMI']), decimals=2)
 BMI_std_0 = np.round(np.nanstd(separate_0['BMI']), decimals=2)
 
-# This is by no means a perfect BMI calculation to use in the final tabel, but considering the current circumstances it is a satisfactory option.
+# This is by no means a perfect BMI calculation to use in the final tabel, but considering the current circumstances it 
+# is a satisfactory option.
 
 # Make plots
 # Combine true positive rates, areas under curve and axes for plotting mean ROC curves

@@ -1,0 +1,12 @@
+This folder contains the final version of the v2.0 IDA tool.
+The main model is v2.0_IDmodel.py. Any actions before running are displayed 
+using "NB" comments. This is mainly changing the locations of the files.
+The needed functions can be found in the folder "functions", which also has to be added to the path.
+A few other "NB" comments can be used to look at features of the model that are descriptive and 
+thus don't need to be displayed every time. 
+
+'laurasmodel.py' is the model of the manually selected features.
+
+Earlier versions of the model can also be found on github, under "older versions".
+At the top of each of these older versions is a short log of changes in which the most 
+important changes are listed of that version.
