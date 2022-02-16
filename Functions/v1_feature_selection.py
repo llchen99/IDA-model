@@ -74,6 +74,3 @@ def find_sign_features(train_data, train_label, index_train, ordinal_keys, binar
     sign = df_p_sign['Features'].tolist()
     return sign, sign_features_dfs
 
-# https://www.analyticsvidhya.com/blog/2021/04/backward-feature-elimination-and-its-implementation/
-# Wrapper methods
-# om van backward naar forward te switchen moet je gewoon forward = False veranderen naar forward = True
